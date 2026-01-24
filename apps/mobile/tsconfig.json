@@ -1,0 +1,20 @@
+{
+  "extends": "@volleypro/config/tsconfig/react.json",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@volleypro/shared/*": ["../../packages/shared/*"],
+      "@/*": [
+        "./*"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts",
+    "src"
+  ],
+  "exclude": ["node_modules", "babel.config.js", "metro.config.js"]
+}
