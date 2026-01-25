@@ -6,7 +6,6 @@ import { hero } from '@/constants/icons';
 import { HapticTab } from '@/components/haptic-tab';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Platform } from 'react-native';
 
 export default function TabLayout() {
     const colorScheme = useColorScheme();
@@ -14,9 +13,16 @@ export default function TabLayout() {
 
     return (
         <Tabs
+            detachInactiveScreens={false}
             screenOptions={{
                 tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tabIconSelected,
+                animation: 'shift',
+                transitionSpec: {
+                    animation: 'timing',
+                    config: { duration: 100 },
+                },
                 headerShown: false,
+                lazy: false,
                 tabBarButton: HapticTab,
                 tabBarShowLabel: false,
                 tabBarStyle: {
