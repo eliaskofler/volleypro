@@ -1,6 +1,7 @@
 {
-  "extends": "@volleypro/config/tsconfig/react.json",
+  "extends": "expo/tsconfig.base",
   "compilerOptions": {
+    "jsx": "react-jsx",
     "strict": true,
     "paths": {
       "@volleypro/shared/*": ["../../packages/shared/*"],

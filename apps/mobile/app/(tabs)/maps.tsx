@@ -1,9 +1,9 @@
 import { View, Text } from "react-native";
 
-export default function TutorialsScreen() {
+export default function MapsScreen() {
     return (
         <View>
-            <Text>Tutorials</Text>
+            <Text>Maps</Text>
         </View>
     );
 }
