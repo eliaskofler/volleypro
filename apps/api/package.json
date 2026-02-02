@@ -18,10 +18,15 @@
   "packageManager": "pnpm@10.6.1",
   "dependencies": {
     "@volleypro/config": "workspace:*",
-    "fastify": "^5.7.1"
+    "dotenv": "^16.0.0",
+    "fastify": "^5.7.1",
+    "nodemon": "^3.1.11",
+    "pg": "^8.18.0"
   },
   "devDependencies": {
     "@types/node": "^25.0.10",
+    "@types/pg": "^8.16.0",
+    "fast-xml-parser": "^4.0.1",
     "nodemon": "^3.1.11",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"

@@ -13,6 +13,7 @@ export default function TabLayout() {
 
     return (
         <Tabs
+            safeAreaInsets={{ bottom: 0 }}
             detachInactiveScreens={false}
             screenOptions={{
                 tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tabIconSelected,
@@ -26,21 +27,39 @@ export default function TabLayout() {
                 tabBarButton: HapticTab,
                 tabBarShowLabel: false,
                 tabBarStyle: {
-                    position: 'fixed',
-                    width: '90%',
+                    position: 'absolute',
                     alignSelf: 'center',
+                    justifyContent: 'center',
                     alignItems: 'center',
                     flexDirection: 'row',
+
+                    width: '90%',
+                    marginLeft: '5%',
+                    marginRight: '5%',
                     bottom: 20,
+                    paddingTop: 0,
+                    paddingBottom: 0,
+                    height: 70,
+
                     elevation: 5, // shadow for Android
                     backgroundColor: themeColors.background,
                     borderRadius: 100,
-                    height: 70,
                     shadowColor: '#000', // iOS shadow
                     shadowOffset: { width: 0, height: 5 },
                     shadowOpacity: 0.1,
                     shadowRadius: 10,
                     borderTopWidth: 0,
+                },
+                tabBarItemStyle: {
+                    flex: 1,
+                    paddingVertical: 0,
+                },
+                tabBarIconStyle: {
+                    height: '100%',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginTop: 0,
+                    marginBottom: 0,
                 },
             }}>
             <Tabs.Screen
@@ -73,9 +92,9 @@ export default function TabLayout() {
                     title: 'Exercises',
                     tabBarIcon: ({ color, focused }) =>
                         focused ? (
-                            <hero.homeOutline size={32} color={color} />
+                            <hero.trophySolid size={32} color={color} />
                         ) : (
-                            <hero.homeOutline size={32} color={color} />
+                            <hero.trophyOutline size={32} color={color} />
                         ),
                 }}
             />

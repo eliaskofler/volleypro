@@ -3,6 +3,7 @@ import {
     BookOpenIcon as BookOpenOutlineIcon,
     MapPinIcon as MapPinOutlineIcon,
     CalendarIcon as CalendarOutlineIcon,
+    TrophyIcon as TrophyOutlineIcon,
 } from 'react-native-heroicons/outline';
 
 import {
@@ -10,6 +11,7 @@ import {
     BookOpenIcon as BookOpenSolidIcon,
     MapPinIcon as MapPinSolidIcon,
     CalendarIcon as CalendarSolidIcon,
+    TrophyIcon as TrophySolidIcon,
 } from 'react-native-heroicons/solid';
 
 export const hero = {
@@ -21,4 +23,6 @@ export const hero = {
     mapPinSolid: MapPinSolidIcon,
     calendarOutline: CalendarOutlineIcon,
     calendarSolid: CalendarSolidIcon,
+    trophyOutline: TrophyOutlineIcon,
+    trophySolid: TrophySolidIcon,
 };
