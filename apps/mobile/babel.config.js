@@ -6,9 +6,9 @@ module.exports = function(api) {
             [
                 'module-resolver',
                 {
-                    root: ['./app'],
+                    root: ['./*'],
                     alias: {
-                        '@': './app', // <-- points @/ to apps/mobile/app
+                        '@': './*', // <-- points @/ to apps/mobile/app
                     },
                 },
             ],
