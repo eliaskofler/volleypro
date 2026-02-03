@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import {
     ScrollView,
     StyleSheet,
@@ -8,6 +8,7 @@ import {
     Linking,
     Alert,
     ActivityIndicator,
+    FlatList,
 } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -91,16 +92,31 @@ function domainFromUrl(url: string) {
 type ChipProps = {
     label: string;
     selected?: boolean;
-    onPress: () => void;
+    onPress: (signal: AbortSignal) => void;
 };
 
 function Chip({ label, selected, onPress }: ChipProps) {
+    const abortControllerRef = useRef<AbortController | null>(null);
+
     return (
         <Pressable
-            onPress={onPress}
-            accessibilityRole="button"
-            accessibilityState={{ selected: !!selected }}
-            style={({ pressed }) => [styles.chip, selected && styles.chipSelected, pressed && styles.chipPressed]}
+            onPress={() => {
+                if (abortControllerRef.current) {
+                    abortControllerRef.current.abort(); // Cancel any ongoing operation immediately
+                }
+                const controller = new AbortController();
+                abortControllerRef.current = controller;
+
+                // Trigger UI updates immediately
+                requestAnimationFrame(() => {
+                    onPress(controller.signal); // Pass the signal to the onPress handler
+                });
+            }}
+            style={({ pressed }) => [
+                styles.chip,
+                selected && styles.chipSelected,
+                pressed && styles.chipPressed,
+            ]}
         >
             <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
         </Pressable>
@@ -113,9 +129,11 @@ export default function EventsScreen() {
     const [gender, setGender] = useState<GenderFilter>("all");
     const [organizerType, setOrganizerType] = useState<OrganizerTypeFilter>("all");
 
-    const [events, setEvents] = useState<ApiEvent[]>([]);
     const [loading, setLoading] = useState(false);
+    const [events, setEvents] = useState<ApiEvent[]>([]);
     const [loadError, setLoadError] = useState<string | null>(null);
+
+    const filterAbortControllerRef = useRef<AbortController | null>(null);
 
     const openWebsite = async (rawUrl: string) => {
         const url = rawUrl.trim();
@@ -204,32 +222,129 @@ export default function EventsScreen() {
     }, [events]);
 
     const filteredEvents = useMemo(() => {
-        const list = events.filter((e) => {
-            if (gender !== "all") {
-                const g = (e.gender ?? "").trim();
-                if (g !== gender) return false;
-            }
+        if (filterAbortControllerRef.current) {
+            filterAbortControllerRef.current.abort(); // Abort previous filtering
+        }
+        const controller = new AbortController();
+        filterAbortControllerRef.current = controller;
 
-            if (organizerType !== "all") {
-                const o = (e.orangizertype ?? "").trim();
-                if (o !== organizerType) return false;
-            }
+        const signal = controller.signal;
 
-            return true;
-        });
+        const performFiltering = () => {
+            const list = events.filter((e) => {
+                if (signal.aborted) return false; // Stop filtering if aborted
 
-        // IMPORTANT: copy before sorting + sort by real dates
-        return [...list].sort((a, b) => {
-            if (!a.startdate && !b.startdate) return 0;
-            if (!a.startdate) return 1;
-            if (!b.startdate) return -1;
+                if (gender !== "all") {
+                    const g = (e.gender ?? "").trim();
+                    if (g !== gender) return false;
+                }
 
-            return (
-                new Date(a.startdate).getTime() -
-                new Date(b.startdate).getTime()
-            );
-        });
+                if (organizerType !== "all") {
+                    const o = (e.orangizertype ?? "").trim();
+                    if (o !== organizerType) return false;
+                }
+
+                return true;
+            });
+
+            if (signal.aborted) return [];
+
+            // IMPORTANT: copy before sorting + sort by real dates
+            return [...list].sort((a, b) => {
+                if (signal.aborted) return 0;
+
+                if (!a.startdate && !b.startdate) return 0;
+                if (!a.startdate) return 1;
+                if (!b.startdate) return -1;
+
+                return (
+                    new Date(a.startdate).getTime() -
+                    new Date(b.startdate).getTime()
+                );
+            });
+        };
+
+        return performFiltering();
     }, [events, gender, organizerType]);
+
+    const renderEvent = ({ item }: { item: ApiEvent }) => {
+        const countryCode = (item.countrycode ?? "").trim();
+        const season = item.season;
+        const genderLabel = (item.gender ?? "").trim();
+        const organizerType = (item.orangizertype ?? "").trim();
+        const type = (item.type ?? "").trim();
+        const datePill = formatShortDateRange(item.startdate, item.enddate);
+
+        return (
+            <View style={styles.card}>
+                <View style={styles.cardTopRow}>
+                    <Text style={styles.cardTitle} numberOfLines={2}>
+                        {item.name}
+                    </Text>
+
+                    {!!countryCode && (
+                        <View style={styles.countryPill}>
+                            <Text style={styles.countryPillText}>{countryCode}</Text>
+                        </View>
+                    )}
+                </View>
+
+                <View style={styles.pillsRow}>
+                    <View style={styles.pill}>
+                        <Text style={styles.pillText}>{datePill}</Text>
+                    </View>
+
+                    {typeof season === "number" && (
+                        <View style={styles.pillMuted}>
+                            <Text style={styles.pillMutedText}>{season}</Text>
+                        </View>
+                    )}
+
+                    {!!genderLabel && (
+                        <View style={styles.pillMuted}>
+                            <Text style={styles.pillMutedText}>{genderLabel}</Text>
+                        </View>
+                    )}
+                </View>
+
+                {(!!type || !!organizerType) && (
+                    <View style={styles.infoBlock}>
+                        {!!type && (
+                            <View style={styles.infoRow}>
+                                <Text style={styles.infoLabel}>Type</Text>
+                                <Text style={styles.infoValue} numberOfLines={1}>
+                                    {type}
+                                </Text>
+                            </View>
+                        )}
+
+                        {!!organizerType && (
+                            <View style={styles.infoRow}>
+                                <Text style={styles.infoLabel}>Organizer</Text>
+                                <Text style={styles.infoValue} numberOfLines={1}>
+                                    {organizerType}
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+                )}
+
+                {!!item.website && (
+                    <Pressable
+                        accessibilityRole="link"
+                        onPress={() => openWebsite(item.website!)}
+                        style={({ pressed }) => [styles.websiteRow, pressed && styles.websiteRowPressed]}
+                        hitSlop={8}
+                    >
+                        <Text style={styles.websiteLabel}>Website</Text>
+                        <Text style={styles.websiteValue} numberOfLines={1}>
+                            {domainFromUrl(item.website)}
+                        </Text>
+                    </Pressable>
+                )}
+            </View>
+        );
+    };
 
     return (
         <TabSwipeView routes={TAB_ROUTES}>
@@ -301,132 +416,49 @@ export default function EventsScreen() {
                         </View>
                     </View>
 
-                    <ScrollView contentContainerStyle={styles.listContainer} showsVerticalScrollIndicator={false}>
-                        <View style={styles.resultsRow}>
-                            <Text style={styles.resultsText}>
-                                {loading
-                                    ? "Loading…"
-                                    : `Showing ${filteredEvents.length} ${
-                                          filteredEvents.length === 1 ? "event" : "events"
-                                      }`}
-                            </Text>
+                    <FlatList
+                        data={loading ? [] : filteredEvents} // Show no data while loading
+                        keyExtractor={(item, index) => `${item.name}-${index}`}
+                        renderItem={renderEvent}
+                        contentContainerStyle={styles.listContainer}
+                        ListHeaderComponent={() => (
+                            <View style={styles.resultsRow}>
+                                {loading ? (
+                                    <Text style={styles.resultsText}>Gathering events...</Text>
+                                ) : (
+                                    <Text style={styles.resultsText}>
+                                        Showing {filteredEvents.length} {filteredEvents.length === 1 ? "event" : "events"}
+                                    </Text>
+                                )}
 
-                            <Pressable
-                                onPress={() => {
-                                    setYear("upcoming");
-                                    setGender("all");
-                                    setOrganizerType("all");
-                                }}
-                                accessibilityRole="button"
-                                style={({ pressed }) => [styles.resetBtn, pressed && styles.resetBtnPressed]}
-                            >
-                                <Text style={styles.resetBtnText}>Reset</Text>
-                            </Pressable>
-                        </View>
-
-                        {loading && (
-                            <View style={styles.stateBox}>
-                                <ActivityIndicator />
-                                <Text style={styles.stateText}>Fetching events…</Text>
+                                <Pressable
+                                    onPress={() => {
+                                        setYear("upcoming");
+                                        setGender("all");
+                                        setOrganizerType("all");
+                                    }}
+                                    accessibilityRole="button"
+                                    style={({ pressed }) => [styles.resetBtn, pressed && styles.resetBtnPressed]}
+                                >
+                                    <Text style={styles.resetBtnText}>Reset</Text>
+                                </Pressable>
                             </View>
                         )}
-
-                        {!loading && !!loadError && (
-                            <View style={styles.stateBox}>
-                                <Text style={styles.stateTitle}>Couldn’t load events</Text>
-                                <Text style={styles.stateText}>{loadError}</Text>
-                            </View>
-                        )}
-
-                        {!loading && !loadError && filteredEvents.length === 0 && (
-                            <View style={styles.stateBox}>
-                                <Text style={styles.stateTitle}>No matches</Text>
-                                <Text style={styles.stateText}>Try changing year or gender.</Text>
-                            </View>
-                        )}
-
-                        {!loading &&
-                            !loadError &&
-                            filteredEvents.map((event, idx) => {
-                                const countryCode = (event.countrycode ?? "").trim();
-                                const season = event.season;
-                                const genderLabel = (event.gender ?? "").trim();
-                                const organizerType = (event.orangizertype ?? "").trim();
-                                const type = (event.type ?? "").trim();
-
-                                const datePill = formatShortDateRange(event.startdate, event.enddate);
-
-                                return (
-                                    <View key={`${event.name}-${idx}`} style={styles.card}>
-                                        <View style={styles.cardTopRow}>
-                                            <Text style={styles.cardTitle} numberOfLines={2}>
-                                                {event.name}
-                                            </Text>
-
-                                            {!!countryCode && (
-                                                <View style={styles.countryPill}>
-                                                    <Text style={styles.countryPillText}>{countryCode}</Text>
-                                                </View>
-                                            )}
-                                        </View>
-
-                                        <View style={styles.pillsRow}>
-                                            <View style={styles.pill}>
-                                                <Text style={styles.pillText}>{datePill}</Text>
-                                            </View>
-
-                                            {typeof season === "number" && (
-                                                <View style={styles.pillMuted}>
-                                                    <Text style={styles.pillMutedText}>{season}</Text>
-                                                </View>
-                                            )}
-
-                                            {!!genderLabel && (
-                                                <View style={styles.pillMuted}>
-                                                    <Text style={styles.pillMutedText}>{genderLabel}</Text>
-                                                </View>
-                                            )}
-                                        </View>
-
-                                        {(!!type || !!organizerType) && (
-                                            <View style={styles.infoBlock}>
-                                                {!!type && (
-                                                    <View style={styles.infoRow}>
-                                                        <Text style={styles.infoLabel}>Type</Text>
-                                                        <Text style={styles.infoValue} numberOfLines={1}>
-                                                            {type}
-                                                        </Text>
-                                                    </View>
-                                                )}
-
-                                                {!!organizerType && (
-                                                    <View style={styles.infoRow}>
-                                                        <Text style={styles.infoLabel}>Organizer</Text>
-                                                        <Text style={styles.infoValue} numberOfLines={1}>
-                                                            {organizerType}
-                                                        </Text>
-                                                    </View>
-                                                )}
-                                            </View>
-                                        )}
-
-                                        {!!event.website && (
-                                            <Pressable
-                                                accessibilityRole="link"
-                                                onPress={() => openWebsite(event.website!)}
-                                                style={({ pressed }) => [styles.websiteRow, pressed && styles.websiteRowPressed]}
-                                                hitSlop={8}
-                                            >
-                                                <Text style={styles.websiteLabel}>Website</Text>
-                                                <Text style={styles.websiteValue} numberOfLines={1}>
-                                                    {domainFromUrl(event.website)}
-                                                </Text>
-                                            </Pressable>
-                                        )}
+                        ListEmptyComponent={() => (
+                            loading ? (
+                                <View>
+                                    <ActivityIndicator size="large" color="#0F2A5F" />
+                                </View>
+                            ) : (
+                                !loadError && (
+                                    <View style={styles.stateBox}>
+                                        <Text style={styles.stateTitle}>No matches</Text>
+                                        <Text style={styles.stateText}>Try changing year or gender.</Text>
                                     </View>
-                                );
-                            })}
-                    </ScrollView>
+                                )
+                            )
+                        )}
+                    />
                 </View>
             </SafeAreaView>
         </TabSwipeView>
