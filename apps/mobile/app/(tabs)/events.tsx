@@ -346,6 +346,93 @@ export default function EventsScreen() {
         );
     };
 
+    const renderHeader = () => (
+        <View>
+            <View style={styles.controlsCard}>
+                <View style={styles.section}>
+                    <Text style={styles.sectionLabel}>Sport</Text>
+                    <View style={styles.rowWrap}>
+                        <Chip
+                            label="Beach volleyball"
+                            selected={category === "beach"}
+                            onPress={() => setCategory("beach")}
+                        />
+                        <Chip
+                            label="Volleyball"
+                            selected={category === "volleyball"}
+                            onPress={() => setCategory("volleyball")}
+                        />
+                    </View>
+                </View>
+    
+                <View style={styles.section}>
+                    <Text style={styles.sectionLabel}>Year</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+                        {YEAR_OPTIONS.map((y) => (
+                            <Chip
+                                key={String(y)}
+                                label={y === "upcoming" ? "Upcoming" : String(y)}
+                                selected={year === y}
+                                onPress={() => setYear(y)}
+                            />
+                        ))}
+                    </ScrollView>
+                </View>
+    
+                <View style={styles.section}>
+                    <Text style={styles.sectionLabel}>Gender</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+                        <Chip label="All" selected={gender === "all"} onPress={() => setGender("all")} />
+                        {availableGenders.map((g) => (
+                            <Chip key={g} label={g} selected={gender === g} onPress={() => setGender(g)} />
+                        ))}
+                    </ScrollView>
+                </View>
+    
+                <View style={styles.section}>
+                    <Text style={styles.sectionLabel}>Organizer type</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+                        <Chip
+                            label="All"
+                            selected={organizerType === "all"}
+                            onPress={() => setOrganizerType("all")}
+                        />
+                        {availableOrganizerTypes.map((o) => (
+                            <Chip
+                                key={o}
+                                label={o}
+                                selected={organizerType === o}
+                                onPress={() => setOrganizerType(o)}
+                            />
+                        ))}
+                    </ScrollView>
+                </View>
+            </View>
+            
+            <View style={styles.resultsRow}>
+                {loading ? (
+                    <Text style={styles.resultsText}>Gathering events...</Text>
+                ) : (
+                    <Text style={styles.resultsText}>
+                        Showing {filteredEvents.length} {filteredEvents.length === 1 ? "event" : "events"}
+                    </Text>
+                )}
+    
+                <Pressable
+                    onPress={() => {
+                        setYear("upcoming");
+                        setGender("all");
+                        setOrganizerType("all");
+                    }}
+                    accessibilityRole="button"
+                    style={({ pressed }) => [styles.resetBtn, pressed && styles.resetBtnPressed]}
+                >
+                    <Text style={styles.resetBtnText}>Reset</Text>
+                </Pressable>
+            </View>
+        </View>
+    );
+
     return (
         <TabSwipeView routes={TAB_ROUTES}>
             <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -354,96 +441,13 @@ export default function EventsScreen() {
                         <Text style={styles.title}>Events</Text>
                         <Text style={styles.subtitle}>Filter by sport, year, gender, and organizer</Text>
                     </View>
-
-                    <View style={styles.controlsCard}>
-                        <View style={styles.section}>
-                            <Text style={styles.sectionLabel}>Sport</Text>
-                            <View style={styles.rowWrap}>
-                                <Chip
-                                    label="Beach volleyball"
-                                    selected={category === "beach"}
-                                    onPress={() => setCategory("beach")}
-                                />
-                                <Chip
-                                    label="Volleyball"
-                                    selected={category === "volleyball"}
-                                    onPress={() => setCategory("volleyball")}
-                                />
-                            </View>
-                        </View>
-
-                        <View style={styles.section}>
-                            <Text style={styles.sectionLabel}>Year</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-                                {YEAR_OPTIONS.map((y) => (
-                                    <Chip
-                                        key={String(y)}
-                                        label={y === "upcoming" ? "Upcoming" : String(y)}
-                                        selected={year === y}
-                                        onPress={() => setYear(y)}
-                                    />
-                                ))}
-                            </ScrollView>
-                        </View>
-
-                        <View style={styles.section}>
-                            <Text style={styles.sectionLabel}>Gender</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-                                <Chip label="All" selected={gender === "all"} onPress={() => setGender("all")} />
-                                {availableGenders.map((g) => (
-                                    <Chip key={g} label={g} selected={gender === g} onPress={() => setGender(g)} />
-                                ))}
-                            </ScrollView>
-                        </View>
-
-                        <View style={styles.section}>
-                            <Text style={styles.sectionLabel}>Organizer type</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-                                <Chip
-                                    label="All"
-                                    selected={organizerType === "all"}
-                                    onPress={() => setOrganizerType("all")}
-                                />
-                                {availableOrganizerTypes.map((o) => (
-                                    <Chip
-                                        key={o}
-                                        label={o}
-                                        selected={organizerType === o}
-                                        onPress={() => setOrganizerType(o)}
-                                    />
-                                ))}
-                            </ScrollView>
-                        </View>
-                    </View>
-
                     <FlatList
                         data={loading ? [] : filteredEvents} // Show no data while loading
                         keyExtractor={(item, index) => `${item.name}-${index}`}
                         renderItem={renderEvent}
                         contentContainerStyle={styles.listContainer}
-                        ListHeaderComponent={() => (
-                            <View style={styles.resultsRow}>
-                                {loading ? (
-                                    <Text style={styles.resultsText}>Gathering events...</Text>
-                                ) : (
-                                    <Text style={styles.resultsText}>
-                                        Showing {filteredEvents.length} {filteredEvents.length === 1 ? "event" : "events"}
-                                    </Text>
-                                )}
-
-                                <Pressable
-                                    onPress={() => {
-                                        setYear("upcoming");
-                                        setGender("all");
-                                        setOrganizerType("all");
-                                    }}
-                                    accessibilityRole="button"
-                                    style={({ pressed }) => [styles.resetBtn, pressed && styles.resetBtnPressed]}
-                                >
-                                    <Text style={styles.resetBtnText}>Reset</Text>
-                                </Pressable>
-                            </View>
-                        )}
+                        ListHeaderComponent={renderHeader}
+                        decelerationRate="normal"
                         ListEmptyComponent={() => (
                             loading ? (
                                 <View>
@@ -494,7 +498,6 @@ const styles = StyleSheet.create({
     },
 
     controlsCard: {
-        marginHorizontal: 16,
         marginBottom: 10,
         padding: 14,
         backgroundColor: "#FFFFFF",
