@@ -4,6 +4,9 @@ import {
     MapPinIcon as MapPinOutlineIcon,
     CalendarIcon as CalendarOutlineIcon,
     TrophyIcon as TrophyOutlineIcon,
+    
+    AdjustmentsHorizontalIcon as FilterIcon,
+    ArrowPathRoundedSquareIcon as SwitchIcon
 } from 'react-native-heroicons/outline';
 
 import {
@@ -25,4 +28,7 @@ export const hero = {
     calendarSolid: CalendarSolidIcon,
     trophyOutline: TrophyOutlineIcon,
     trophySolid: TrophySolidIcon,
+
+    filter: FilterIcon,
+    switchIcon: SwitchIcon,
 };

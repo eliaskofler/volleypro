@@ -1,14 +1,13 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import {
-    ScrollView,
     StyleSheet,
     Text,
     View,
-    Pressable,
     Linking,
     Alert,
     ActivityIndicator,
     FlatList,
+    Platform,
 } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -16,23 +15,18 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { TabSwipeView } from "@/components/tab-swipe-view";
 import { TAB_ROUTES } from "@/constants/tab-routes";
 
-type EventCategory = "beach" | "volleyball";
-type YearFilter = "upcoming" | number;
+import { Chip } from "@/components/ui/Chip";
+import { FilterBottomSheet } from "@/components/events/filterBottomSheet";
+import { EventListHeader } from "@/components/events/renderHeader";
+import { EventRenderer } from "@/components/events/renderEvent";
 
-type GenderFilter = "all" | string;
-type OrganizerTypeFilter = "all" | string;
-
-type ApiEvent = {
-    season?: number;
-    countrycode?: string;
-    name: string;
-    gender?: string;
-    startdate?: string;
-    enddate?: string;
-    orangizertype?: string;
-    type?: string;
-    website?: string;
-};
+import {
+    YearFilter,
+    EventCategory,
+    GenderFilter,
+    OrganizerTypeFilter,
+    ApiEvent
+} from "@/types/filters";
 
 const API_BASE_URL = "http://45.131.109.42:3000";
 
@@ -43,86 +37,6 @@ const YEAR_OPTIONS: YearFilter[] = (() => {
     return years;
 })();
 
-function formatShortDateRange(startISO?: string, endISO?: string) {
-    const normalize = (v?: string) => {
-        const s = String(v ?? "").trim();
-        if (!s) return "";
-        if (s.toLowerCase() === "null" || s.toLowerCase() === "none") return "";
-        if (s === "0000-00-00") return "";
-        return s;
-    };
-
-    const startStr = normalize(startISO);
-    const endStr = normalize(endISO);
-
-    if (!startStr) return "TBA";
-
-    const parseISODate = (s: string) => {
-        // Expecting YYYY-MM-DD (your API now returns this)
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
-        const d = new Date(`${s}T00:00:00`);
-        return Number.isNaN(d.getTime()) ? null : d;
-    };
-
-    const start = parseISODate(startStr);
-    if (!start) return "TBA";
-
-    const end = endStr ? parseISODate(endStr) : null;
-
-    const monthDay = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
-
-    if (!end) return monthDay.format(start);
-
-    const sameYear = start.getFullYear() === end.getFullYear();
-    const sameMonth = sameYear && start.getMonth() === end.getMonth();
-
-    if (sameMonth) return `${monthDay.format(start)}–${end.getDate()}`;
-    return `${monthDay.format(start)}–${monthDay.format(end)}`;
-}
-
-function domainFromUrl(url: string) {
-    try {
-        const u = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
-        return u.hostname.replace(/^www\./i, "");
-    } catch {
-        return url;
-    }
-}
-
-type ChipProps = {
-    label: string;
-    selected?: boolean;
-    onPress: (signal: AbortSignal) => void;
-};
-
-function Chip({ label, selected, onPress }: ChipProps) {
-    const abortControllerRef = useRef<AbortController | null>(null);
-
-    return (
-        <Pressable
-            onPress={() => {
-                if (abortControllerRef.current) {
-                    abortControllerRef.current.abort(); // Cancel any ongoing operation immediately
-                }
-                const controller = new AbortController();
-                abortControllerRef.current = controller;
-
-                // Trigger UI updates immediately
-                requestAnimationFrame(() => {
-                    onPress(controller.signal); // Pass the signal to the onPress handler
-                });
-            }}
-            style={({ pressed }) => [
-                styles.chip,
-                selected && styles.chipSelected,
-                pressed && styles.chipPressed,
-            ]}
-        >
-            <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
-        </Pressable>
-    );
-}
-
 export default function EventsScreen() {
     const [category, setCategory] = useState<EventCategory>("beach");
     const [year, setYear] = useState<YearFilter>("upcoming");
@@ -132,6 +46,8 @@ export default function EventsScreen() {
     const [loading, setLoading] = useState(false);
     const [events, setEvents] = useState<ApiEvent[]>([]);
     const [loadError, setLoadError] = useState<string | null>(null);
+
+    const [showFilters, setShowFilters] = useState(false);
 
     const filterAbortControllerRef = useRef<AbortController | null>(null);
 
@@ -195,7 +111,7 @@ export default function EventsScreen() {
             }
         };
 
-        load();
+        load().then();
         return () => controller.abort();
     }, [category, year]);
 
@@ -267,171 +183,7 @@ export default function EventsScreen() {
         return performFiltering();
     }, [events, gender, organizerType]);
 
-    const renderEvent = ({ item }: { item: ApiEvent }) => {
-        const countryCode = (item.countrycode ?? "").trim();
-        const season = item.season;
-        const genderLabel = (item.gender ?? "").trim();
-        const organizerType = (item.orangizertype ?? "").trim();
-        const type = (item.type ?? "").trim();
-        const datePill = formatShortDateRange(item.startdate, item.enddate);
 
-        return (
-            <View style={styles.card}>
-                <View style={styles.cardTopRow}>
-                    <Text style={styles.cardTitle} numberOfLines={2}>
-                        {item.name}
-                    </Text>
-
-                    {!!countryCode && (
-                        <View style={styles.countryPill}>
-                            <Text style={styles.countryPillText}>{countryCode}</Text>
-                        </View>
-                    )}
-                </View>
-
-                <View style={styles.pillsRow}>
-                    <View style={styles.pill}>
-                        <Text style={styles.pillText}>{datePill}</Text>
-                    </View>
-
-                    {typeof season === "number" && (
-                        <View style={styles.pillMuted}>
-                            <Text style={styles.pillMutedText}>{season}</Text>
-                        </View>
-                    )}
-
-                    {!!genderLabel && (
-                        <View style={styles.pillMuted}>
-                            <Text style={styles.pillMutedText}>{genderLabel}</Text>
-                        </View>
-                    )}
-                </View>
-
-                {(!!type || !!organizerType) && (
-                    <View style={styles.infoBlock}>
-                        {!!type && (
-                            <View style={styles.infoRow}>
-                                <Text style={styles.infoLabel}>Type</Text>
-                                <Text style={styles.infoValue} numberOfLines={1}>
-                                    {type}
-                                </Text>
-                            </View>
-                        )}
-
-                        {!!organizerType && (
-                            <View style={styles.infoRow}>
-                                <Text style={styles.infoLabel}>Organizer</Text>
-                                <Text style={styles.infoValue} numberOfLines={1}>
-                                    {organizerType}
-                                </Text>
-                            </View>
-                        )}
-                    </View>
-                )}
-
-                {!!item.website && (
-                    <Pressable
-                        accessibilityRole="link"
-                        onPress={() => openWebsite(item.website!)}
-                        style={({ pressed }) => [styles.websiteRow, pressed && styles.websiteRowPressed]}
-                        hitSlop={8}
-                    >
-                        <Text style={styles.websiteLabel}>Website</Text>
-                        <Text style={styles.websiteValue} numberOfLines={1}>
-                            {domainFromUrl(item.website)}
-                        </Text>
-                    </Pressable>
-                )}
-            </View>
-        );
-    };
-
-    const renderHeader = () => (
-        <View>
-            <View style={styles.controlsCard}>
-                <View style={styles.section}>
-                    <Text style={styles.sectionLabel}>Sport</Text>
-                    <View style={styles.rowWrap}>
-                        <Chip
-                            label="Beach volleyball"
-                            selected={category === "beach"}
-                            onPress={() => setCategory("beach")}
-                        />
-                        <Chip
-                            label="Volleyball"
-                            selected={category === "volleyball"}
-                            onPress={() => setCategory("volleyball")}
-                        />
-                    </View>
-                </View>
-    
-                <View style={styles.section}>
-                    <Text style={styles.sectionLabel}>Year</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-                        {YEAR_OPTIONS.map((y) => (
-                            <Chip
-                                key={String(y)}
-                                label={y === "upcoming" ? "Upcoming" : String(y)}
-                                selected={year === y}
-                                onPress={() => setYear(y)}
-                            />
-                        ))}
-                    </ScrollView>
-                </View>
-    
-                <View style={styles.section}>
-                    <Text style={styles.sectionLabel}>Gender</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-                        <Chip label="All" selected={gender === "all"} onPress={() => setGender("all")} />
-                        {availableGenders.map((g) => (
-                            <Chip key={g} label={g} selected={gender === g} onPress={() => setGender(g)} />
-                        ))}
-                    </ScrollView>
-                </View>
-    
-                <View style={styles.section}>
-                    <Text style={styles.sectionLabel}>Organizer type</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-                        <Chip
-                            label="All"
-                            selected={organizerType === "all"}
-                            onPress={() => setOrganizerType("all")}
-                        />
-                        {availableOrganizerTypes.map((o) => (
-                            <Chip
-                                key={o}
-                                label={o}
-                                selected={organizerType === o}
-                                onPress={() => setOrganizerType(o)}
-                            />
-                        ))}
-                    </ScrollView>
-                </View>
-            </View>
-            
-            <View style={styles.resultsRow}>
-                {loading ? (
-                    <Text style={styles.resultsText}>Gathering events...</Text>
-                ) : (
-                    <Text style={styles.resultsText}>
-                        Showing {filteredEvents.length} {filteredEvents.length === 1 ? "event" : "events"}
-                    </Text>
-                )}
-    
-                <Pressable
-                    onPress={() => {
-                        setYear("upcoming");
-                        setGender("all");
-                        setOrganizerType("all");
-                    }}
-                    accessibilityRole="button"
-                    style={({ pressed }) => [styles.resetBtn, pressed && styles.resetBtnPressed]}
-                >
-                    <Text style={styles.resetBtnText}>Reset</Text>
-                </Pressable>
-            </View>
-        </View>
-    );
 
     return (
         <TabSwipeView routes={TAB_ROUTES}>
@@ -444,9 +196,22 @@ export default function EventsScreen() {
                     <FlatList
                         data={loading ? [] : filteredEvents} // Show no data while loading
                         keyExtractor={(item, index) => `${item.name}-${index}`}
-                        renderItem={renderEvent}
+                        renderItem={({ item }) => (
+                            <EventRenderer event={item} openWebsite={openWebsite} />
+                        )}
                         contentContainerStyle={styles.listContainer}
-                        ListHeaderComponent={renderHeader}
+                        ListHeaderComponent={
+                            <EventListHeader
+                                category={category}
+                                setCategory={setCategory}
+                                year={year}
+                                setYear={setYear}
+                                yearOptions={YEAR_OPTIONS}
+                                loading={loading}
+                                filteredCount={filteredEvents.length}
+                                onOpenFilters={() => setShowFilters(true)}
+                            />
+                        }
                         decelerationRate="normal"
                         ListEmptyComponent={() => (
                             loading ? (
@@ -462,6 +227,25 @@ export default function EventsScreen() {
                                 )
                             )
                         )}
+                    />
+
+                    {/* Bottom sheet modal for Gender and Organizer Type */}
+                    <FilterBottomSheet
+                        visible={showFilters}
+                        gender={gender}
+                        onGenderChange={setGender}
+                        organizerType={organizerType}
+                        onOrganizerTypeChange={setOrganizerType}
+                        availableGenders={availableGenders}
+                        availableOrganizerTypes={availableOrganizerTypes}
+                        setShowFilters={setShowFilters}
+                        showFilters={showFilters}
+                        onReset={() => {
+                            setGender("all");
+                            setOrganizerType("all");
+                        }}
+                        styles={styles}
+                        Chip={Chip}
                     />
                 </View>
             </SafeAreaView>
@@ -497,64 +281,6 @@ const styles = StyleSheet.create({
         lineHeight: 20,
     },
 
-    controlsCard: {
-        marginBottom: 10,
-        padding: 14,
-        backgroundColor: "#FFFFFF",
-        borderRadius: 18,
-        borderWidth: 1,
-        borderColor: "#E7ECF5",
-        shadowColor: "#0B1324",
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.06,
-        shadowRadius: 18,
-        elevation: 2,
-        gap: 12,
-    },
-    section: {
-        gap: 8,
-    },
-    sectionLabel: {
-        fontSize: 12,
-        fontWeight: "900",
-        color: "#0B1324",
-        letterSpacing: 0.6,
-        textTransform: "uppercase",
-    },
-    row: {
-        gap: 10,
-        paddingRight: 8,
-    },
-    rowWrap: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 10,
-    },
-
-    chip: {
-        borderRadius: 999,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        backgroundColor: "#F2F5FB",
-        borderWidth: 1,
-        borderColor: "#E5EAF4",
-    },
-    chipSelected: {
-        backgroundColor: "#0F2A5F",
-        borderColor: "#0F2A5F",
-    },
-    chipPressed: {
-        opacity: 0.85,
-    },
-    chipText: {
-        fontSize: 13,
-        fontWeight: "800",
-        color: "#314057",
-    },
-    chipTextSelected: {
-        color: "#FFFFFF",
-    },
-
     listContainer: {
         paddingHorizontal: 16,
         paddingTop: 12,
@@ -562,22 +288,18 @@ const styles = StyleSheet.create({
         gap: 12,
     },
 
-    resultsRow: {
-        flexDirection: "row",
+    filterBtn: {
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+        borderRadius: 12,
+        backgroundColor: "#FFFFFF",
+        borderWidth: 1,
+        borderColor: "#E5EAF4",
         alignItems: "center",
-        justifyContent: "space-between",
-        gap: 12,
-        marginBottom: 10,
-        paddingHorizontal: 4,
+        justifyContent: "center",
     },
-    resultsText: {
-        color: "#55657E",
-        fontSize: 13,
-        fontWeight: "800",
-    },
-    resultsStrong: {
-        color: "#0B1324",
-        fontWeight: "900",
+    filterIcon: {
+        fontSize: 18,
     },
 
     emptyBox: {
@@ -600,140 +322,6 @@ const styles = StyleSheet.create({
         fontWeight: "600",
     },
 
-    card: {
-        backgroundColor: "#FFFFFF",
-        borderRadius: 20,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: "#E7ECF5",
-        shadowColor: "#0B1324",
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.06,
-        shadowRadius: 18,
-        elevation: 2,
-    },
-
-    cardTopRow: {
-        flexDirection: "row",
-        alignItems: "flex-start",
-        justifyContent: "space-between",
-        gap: 12,
-    },
-    cardTitle: {
-        flex: 1,
-        fontSize: 18,
-        fontWeight: "900",
-        color: "#0B1324",
-        letterSpacing: 0.2,
-        lineHeight: 23,
-    },
-
-    countryPill: {
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-        borderRadius: 999,
-        backgroundColor: "#E9F1FF",
-        borderWidth: 1,
-        borderColor: "#D7E6FF",
-    },
-    countryPillText: {
-        fontSize: 12,
-        fontWeight: "900",
-        color: "#1C4ED8",
-        letterSpacing: 0.4,
-    },
-
-    pillsRow: {
-        marginTop: 10,
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 8,
-    },
-    pill: {
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 999,
-        backgroundColor: "#0F2A5F",
-    },
-    pillText: {
-        fontSize: 12,
-        fontWeight: "900",
-        color: "#FFFFFF",
-        letterSpacing: 0.2,
-    },
-    pillMuted: {
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 999,
-        backgroundColor: "#F2F5FB",
-        borderWidth: 1,
-        borderColor: "#E5EAF4",
-    },
-    pillMutedText: {
-        fontSize: 12,
-        fontWeight: "900",
-        color: "#314057",
-        letterSpacing: 0.2,
-    },
-
-    infoBlock: {
-        marginTop: 12,
-        gap: 8,
-        paddingTop: 10,
-        borderTopWidth: 1,
-        borderTopColor: "#EEF2FA",
-    },
-    infoRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 12,
-    },
-    infoLabel: {
-        fontSize: 12,
-        fontWeight: "900",
-        color: "#66758C",
-        textTransform: "uppercase",
-        letterSpacing: 0.6,
-    },
-    infoValue: {
-        flex: 1,
-        textAlign: "right",
-        fontSize: 13,
-        fontWeight: "800",
-        color: "#0B1324",
-    },
-
-    websiteRow: {
-        marginTop: 12,
-        paddingTop: 10,
-        borderTopWidth: 1,
-        borderTopColor: "#EEF2FA",
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 12,
-    },
-    websiteRowPressed: {
-        opacity: 0.75,
-    },
-    websiteLabel: {
-        fontSize: 12,
-        fontWeight: "900",
-        color: "#66758C",
-        textTransform: "uppercase",
-        letterSpacing: 0.6,
-    },
-    websiteValue: {
-        flex: 1,
-        textAlign: "right",
-        fontSize: 13,
-        fontWeight: "900",
-        color: "#1C4ED8",
-        textDecorationLine: "underline",
-    },
-
-    // Add these (they are referenced by the loading/error/empty states)
     stateBox: {
         backgroundColor: "#FFFFFF",
         borderRadius: 16,
@@ -769,5 +357,75 @@ const styles = StyleSheet.create({
         color: "#0F2A5F",
         letterSpacing: 0.3,
         textTransform: "uppercase",
+    },
+
+    /* Bottom sheet styles */
+    sheetOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.35)",
+    },
+    bottomSheet: {
+        position: "absolute",
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "#FFFFFF",
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
+        paddingTop: 12,
+        paddingHorizontal: 16,
+        paddingBottom: Platform.OS === "ios" ? 34 : 20,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: -6 },
+        shadowOpacity: 0.12,
+        shadowRadius: 12,
+        elevation: 20,
+    },
+    sheetHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: 8,
+    },
+    sheetTitle: {
+        fontSize: 16,
+        fontWeight: "900",
+        color: "#0B1324",
+    },
+    sheetResetBtn: {
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+    },
+    sheetResetText: {
+        color: "#66758C",
+        fontSize: 13,
+        fontWeight: "800",
+    },
+    sheetSection: {
+        marginTop: 8,
+        gap: 8,
+    },
+    sheetFooter: {
+        marginTop: 12,
+        alignItems: "flex-end",
+    },
+    sheetBtn: {
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 10,
+        backgroundColor: "#0F2A5F",
+    },
+    sheetBtnText: {
+        color: "#FFFFFF",
+        fontWeight: "900",
+    },
+    dragHandle: {
+        width: 40,
+        height: 5,
+        borderRadius: 2.5,
+        backgroundColor: "#D1D5E0",
+        alignSelf: "center",
+        marginTop: 8,
+        marginBottom: 12,
     },
 });
