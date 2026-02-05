@@ -2,6 +2,7 @@ import {View, Text, ScrollView, Pressable, StyleSheet} from "react-native";
 import { Chip } from "@/components/ui/Chip";
 import { Pill } from "@/components/ui/Pill";
 import { hero } from "@/constants/icons";
+import { WheelPicker } from "@/components/ui/WheelPicker";
 
 import { YearFilter } from "@/types/filters";
 
@@ -17,6 +18,7 @@ interface EventListHeaderProps {
     filteredCount: number;
 
     onOpenFilters: () => void;
+    onResetFilters: () => void;
 }
 
 export function EventListHeader({
@@ -28,25 +30,35 @@ export function EventListHeader({
     loading,
     filteredCount,
     onOpenFilters,
+    onResetFilters,
 }: EventListHeaderProps) {
     const isBeach = category === "beach";
 
     return (
-        <View>
+        <View style={styles.filter}>
             <View style={styles.controlsCard}>
-                <View style={styles.section}>
-                    <View style={styles.rowWrap}>
-                        <Pill
-                            label={isBeach ? "Beach volleyball" : "Volleyball"}
-                            selected
-                            iconLeft={<hero.switchIcon size={24} color="#000" />}
-                            onPress={() =>
-                                setCategory(isBeach ? "volleyball" : "beach")
-                            }
-                        />
+                <View style={styles.controlsLook}>
+                    <View style={styles.section}>
+                        <View style={styles.rowWrap}>
+                            <Pill
+                                label={isBeach ? "Beach 🏐" : "Volleyball"}
+                                selected
+                                iconLeft={<hero.switchIcon size={24} color="#000" />}
+                                onPress={() =>
+                                    setCategory(isBeach ? "volleyball" : "beach")
+                                }
+                            />
+                        </View>
                     </View>
+
+                    <WheelPicker
+                        data={yearOptions}
+                        value={year}
+                        onChange={setYear}
+                    />
                 </View>
 
+                {/*
                 <View style={styles.section}>
                     <ScrollView
                         horizontal
@@ -63,6 +75,7 @@ export function EventListHeader({
                         ))}
                     </ScrollView>
                 </View>
+                */}
 
                 <View style={styles.section}>
                     <Pressable
@@ -86,10 +99,10 @@ export function EventListHeader({
                 </Text>
 
                 <Pressable
-                    onPress={onOpenFilters}
+                    onPress={onResetFilters}
                     accessibilityRole="button"
                     accessibilityLabel="Reset filters"
-                    style={{ paddingRight: 4 }}
+                    style={styles.resetBtn}
                 >
                     <Text style={styles.resultsText}>RESET</Text>
                 </Pressable>
@@ -99,18 +112,37 @@ export function EventListHeader({
 }
 
 const styles = StyleSheet.create({
-    controlsCard: {
-        marginBottom: 10,
-        padding: 14,
+    resetBtn: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 12,
         backgroundColor: "#FFFFFF",
-        borderRadius: 18,
         borderWidth: 1,
-        borderColor: "#E7ECF5",
-        shadowColor: "#0B1324",
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.06,
-        shadowRadius: 18,
-        elevation: 2,
+        borderColor: "#E5EAF4",
+    },
+    resetBtnPressed: { opacity: 0.85 },
+    resetBtnText: {
+        fontSize: 12,
+        fontWeight: "900",
+        color: "#0F2A5F",
+        letterSpacing: 0.3,
+        textTransform: "uppercase",
+    },
+
+    filter: {
+        marginHorizontal: 16,
+    },
+    controlsCard: {
+        paddingVertical: 24,
+        display: "flex",
+        flexDirection: "row",      // 👈 put children in one line
+        alignItems: "center",      // 👈 vertical alignment
+        justifyContent: "space-between",
+        gap: 12,
+    },
+    controlsLook: {
+        display: "flex",
+        flexDirection: "row",
         gap: 12,
     },
     section: {

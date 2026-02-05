@@ -1,7 +1,8 @@
-export type YearFilter = "upcoming" | number;
+export type YearFilter = "Upcoming" | number;
 export type EventCategory = "beach" | "volleyball";
 export type GenderFilter = "all" | string;
 export type OrganizerTypeFilter = "all" | string;
+export type CountryTypeFilter = "all" | string;
 export type ApiEvent = {
     season?: number;
     countrycode?: string;

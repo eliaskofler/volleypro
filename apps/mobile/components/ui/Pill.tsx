@@ -10,12 +10,12 @@ type PillProps = {
 };
 
 export function Pill({
-                         label,
-                         selected,
-                         onPress,
-                         iconLeft,
-                         iconRight,
-                     }: PillProps) {
+ label,
+ selected,
+ onPress,
+ iconLeft,
+ iconRight,
+}: PillProps) {
     const abortControllerRef = useRef<AbortController | null>(null);
 
     return (
@@ -63,6 +63,7 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         borderWidth: 1,
         borderColor: "#E5EAF4",
+        height: 38,
     },
     chipSelected: {
         backgroundColor: "none",
@@ -71,8 +72,8 @@ const styles = StyleSheet.create({
         opacity: 0.85,
     },
     chipText: {
-        fontSize: 13,
-        fontWeight: "800",
+        fontSize: 18,
+        fontWeight: "600",
         color: "#000",
     },
     chipTextSelected: {

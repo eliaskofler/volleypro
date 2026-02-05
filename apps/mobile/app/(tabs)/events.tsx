@@ -7,7 +7,6 @@ import {
     Alert,
     ActivityIndicator,
     FlatList,
-    Platform,
 } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -25,6 +24,7 @@ import {
     EventCategory,
     GenderFilter,
     OrganizerTypeFilter,
+    CountryTypeFilter,
     ApiEvent
 } from "@/types/filters";
 
@@ -32,16 +32,17 @@ const API_BASE_URL = "http://45.131.109.42:3000";
 
 const YEAR_OPTIONS: YearFilter[] = (() => {
     const currentYear = new Date().getFullYear();
-    const years: YearFilter[] = ["upcoming"];
+    const years: YearFilter[] = ["Upcoming"];
     for (let y = currentYear; y >= 2000; y -= 1) years.push(y);
     return years;
 })();
 
 export default function EventsScreen() {
-    const [category, setCategory] = useState<EventCategory>("beach");
-    const [year, setYear] = useState<YearFilter>("upcoming");
+    const [category, setCategory] = useState<EventCategory>("volleyball");
+    const [year, setYear] = useState<YearFilter>("Upcoming");
     const [gender, setGender] = useState<GenderFilter>("all");
     const [organizerType, setOrganizerType] = useState<OrganizerTypeFilter>("all");
+    const [countryType, setCountryType] = useState<CountryTypeFilter>("all");
 
     const [loading, setLoading] = useState(false);
     const [events, setEvents] = useState<ApiEvent[]>([]);
@@ -81,7 +82,7 @@ export default function EventsScreen() {
             try {
                 const params = new URLSearchParams();
                 params.set("sport", category);
-                params.set("year", year === "upcoming" ? "upcoming" : String(year));
+                params.set("year", year === "Upcoming" ? "upcoming" : String(year));
 
                 const url = `${API_BASE_URL}/events?${params.toString()}`;
 
@@ -137,6 +138,17 @@ export default function EventsScreen() {
         return values.sort((a, b) => a.localeCompare(b));
     }, [events]);
 
+    const availableCountryTypes = useMemo(() => {
+        const values = Array.from(
+            new Set(
+                events
+                    .map((e) => (e.countrycode ?? "").trim())
+                    .filter((v) => v.length > 0),
+            ),
+        );
+        return values.sort((a, b) => a.localeCompare(b));
+    }, [events]);
+
     const filteredEvents = useMemo(() => {
         if (filterAbortControllerRef.current) {
             filterAbortControllerRef.current.abort(); // Abort previous filtering
@@ -160,6 +172,11 @@ export default function EventsScreen() {
                     if (o !== organizerType) return false;
                 }
 
+                if (countryType !== "all") {
+                    const c = (e.countrycode ?? "").trim();
+                    if (c !== countryType) return false;
+                }
+
                 return true;
             });
 
@@ -181,18 +198,30 @@ export default function EventsScreen() {
         };
 
         return performFiltering();
-    }, [events, gender, organizerType]);
+    }, [events, gender, organizerType, countryType]);
 
-
+    function onResetFilters() {
+        setGender("all");
+        setYear("Upcoming");
+        setOrganizerType("all");
+        setCountryType("all");
+    }
 
     return (
         <TabSwipeView routes={TAB_ROUTES}>
             <SafeAreaView style={styles.safeArea} edges={["top"]}>
                 <View style={styles.screen}>
-                    <View style={styles.header}>
-                        <Text style={styles.title}>Events</Text>
-                        <Text style={styles.subtitle}>Filter by sport, year, gender, and organizer</Text>
-                    </View>
+                    <EventListHeader
+                        category={category}
+                        setCategory={setCategory}
+                        year={year}
+                        setYear={setYear}
+                        yearOptions={YEAR_OPTIONS}
+                        loading={loading}
+                        filteredCount={filteredEvents.length}
+                        onOpenFilters={() => setShowFilters(true)}
+                        onResetFilters={onResetFilters}
+                    />
                     <FlatList
                         data={loading ? [] : filteredEvents} // Show no data while loading
                         keyExtractor={(item, index) => `${item.name}-${index}`}
@@ -200,18 +229,6 @@ export default function EventsScreen() {
                             <EventRenderer event={item} openWebsite={openWebsite} />
                         )}
                         contentContainerStyle={styles.listContainer}
-                        ListHeaderComponent={
-                            <EventListHeader
-                                category={category}
-                                setCategory={setCategory}
-                                year={year}
-                                setYear={setYear}
-                                yearOptions={YEAR_OPTIONS}
-                                loading={loading}
-                                filteredCount={filteredEvents.length}
-                                onOpenFilters={() => setShowFilters(true)}
-                            />
-                        }
                         decelerationRate="normal"
                         ListEmptyComponent={() => (
                             loading ? (
@@ -233,19 +250,21 @@ export default function EventsScreen() {
                     <FilterBottomSheet
                         visible={showFilters}
                         gender={gender}
-                        onGenderChange={setGender}
                         organizerType={organizerType}
+                        countryType={countryType}
+                        onGenderChange={setGender}
                         onOrganizerTypeChange={setOrganizerType}
+                        onCountryTypeChange={setCountryType}
                         availableGenders={availableGenders}
                         availableOrganizerTypes={availableOrganizerTypes}
+                        availableCountryTypes={availableCountryTypes}
                         setShowFilters={setShowFilters}
                         showFilters={showFilters}
-                        onReset={() => {
-                            setGender("all");
-                            setOrganizerType("all");
-                        }}
-                        styles={styles}
+                        onResetFilters={onResetFilters}
                         Chip={Chip}
+                        year={year}
+                        setYear={setYear}
+                        yearOptions={YEAR_OPTIONS}
                     />
                 </View>
             </SafeAreaView>
@@ -267,39 +286,12 @@ const styles = StyleSheet.create({
         paddingTop: 18, // extra breathing room below the status bar
         paddingBottom: 14,
     },
-    title: {
-        fontSize: 30,
-        fontWeight: "900",
-        color: "#0B1324",
-        letterSpacing: 0.2,
-    },
-    subtitle: {
-        marginTop: 8,
-        fontSize: 14,
-        color: "#66758C",
-        fontWeight: "600",
-        lineHeight: 20,
-    },
 
     listContainer: {
         paddingHorizontal: 16,
         paddingTop: 12,
         paddingBottom: 160,
         gap: 12,
-    },
-
-    filterBtn: {
-        paddingHorizontal: 10,
-        paddingVertical: 8,
-        borderRadius: 12,
-        backgroundColor: "#FFFFFF",
-        borderWidth: 1,
-        borderColor: "#E5EAF4",
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    filterIcon: {
-        fontSize: 18,
     },
 
     emptyBox: {
@@ -340,92 +332,5 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: "600",
         lineHeight: 18,
-    },
-
-    resetBtn: {
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 12,
-        backgroundColor: "#FFFFFF",
-        borderWidth: 1,
-        borderColor: "#E5EAF4",
-    },
-    resetBtnPressed: { opacity: 0.85 },
-    resetBtnText: {
-        fontSize: 12,
-        fontWeight: "900",
-        color: "#0F2A5F",
-        letterSpacing: 0.3,
-        textTransform: "uppercase",
-    },
-
-    /* Bottom sheet styles */
-    sheetOverlay: {
-        flex: 1,
-        backgroundColor: "rgba(0,0,0,0.35)",
-    },
-    bottomSheet: {
-        position: "absolute",
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "#FFFFFF",
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
-        paddingTop: 12,
-        paddingHorizontal: 16,
-        paddingBottom: Platform.OS === "ios" ? 34 : 20,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: -6 },
-        shadowOpacity: 0.12,
-        shadowRadius: 12,
-        elevation: 20,
-    },
-    sheetHeader: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        marginBottom: 8,
-    },
-    sheetTitle: {
-        fontSize: 16,
-        fontWeight: "900",
-        color: "#0B1324",
-    },
-    sheetResetBtn: {
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-    },
-    sheetResetText: {
-        color: "#66758C",
-        fontSize: 13,
-        fontWeight: "800",
-    },
-    sheetSection: {
-        marginTop: 8,
-        gap: 8,
-    },
-    sheetFooter: {
-        marginTop: 12,
-        alignItems: "flex-end",
-    },
-    sheetBtn: {
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 10,
-        backgroundColor: "#0F2A5F",
-    },
-    sheetBtnText: {
-        color: "#FFFFFF",
-        fontWeight: "900",
-    },
-    dragHandle: {
-        width: 40,
-        height: 5,
-        borderRadius: 2.5,
-        backgroundColor: "#D1D5E0",
-        alignSelf: "center",
-        marginTop: 8,
-        marginBottom: 12,
     },
 });
