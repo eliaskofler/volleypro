@@ -1,60 +1,69 @@
-import { StyleSheet, Text, type TextProps } from 'react-native';
-
-import { useThemeColor } from '@/hooks/use-theme-color';
+import { Text, TextProps, StyleSheet } from 'react-native';
+import { useColorScheme } from 'react-native';
+import { useThemePalette } from '@/hooks/use-theme-palette';
 
 export type ThemedTextProps = TextProps & {
-  lightColor?: string;
-  darkColor?: string;
-  type?: 'default' | 'title' | 'defaultSemiBold' | 'subtitle' | 'link';
+    lightColor?: string;
+    darkColor?: string;
+    type?: 'default' | 'title' | 'defaultSemiBold' | 'subtitle' | 'link';
 };
 
 export function ThemedText({
-  style,
-  lightColor,
-  darkColor,
-  type = 'default',
-  ...rest
+   style,
+   lightColor,
+   darkColor,
+   type = 'default',
+   ...rest
 }: ThemedTextProps) {
-  const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
+    const theme = useThemePalette();
+    const colorScheme = useColorScheme(); // 'light' | 'dark'
 
-  return (
-    <Text
-      style={[
-        { color },
-        type === 'default' ? styles.default : undefined,
-        type === 'title' ? styles.title : undefined,
-        type === 'defaultSemiBold' ? styles.defaultSemiBold : undefined,
-        type === 'subtitle' ? styles.subtitle : undefined,
-        type === 'link' ? styles.link : undefined,
-        style,
-      ]}
-      {...rest}
-    />
-  );
+    // pick light/dark override if provided, otherwise use theme.textPrimary by default
+    const color =
+        lightColor && darkColor
+            ? colorScheme === 'dark'
+                ? darkColor
+                : lightColor
+            : theme.textPrimary;
+
+    return (
+        <Text
+            style={[
+                { color },
+                type === 'default' && styles.default,
+                type === 'defaultSemiBold' && styles.defaultSemiBold,
+                type === 'title' && styles.title,
+                type === 'subtitle' && styles.subtitle,
+                type === 'link' && styles.link,
+                style,
+            ]}
+            {...rest}
+        />
+    );
 }
 
 const styles = StyleSheet.create({
-  default: {
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  defaultSemiBold: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: '600',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    lineHeight: 32,
-  },
-  subtitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  link: {
-    lineHeight: 30,
-    fontSize: 16,
-    color: '#0a7ea4',
-  },
+    default: {
+        fontSize: 16,
+        lineHeight: 24,
+    },
+    defaultSemiBold: {
+        fontSize: 16,
+        lineHeight: 24,
+        fontWeight: '600',
+    },
+    title: {
+        fontSize: 32,
+        fontWeight: 'bold',
+        lineHeight: 32,
+    },
+    subtitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+    },
+    link: {
+        lineHeight: 30,
+        fontSize: 16,
+        color: '#0a7ea4', // still a hardcoded link color; you can also move this to theme
+    },
 });

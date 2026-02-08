@@ -4,19 +4,17 @@ import React from 'react';
 import { hero } from '@/constants/icons';
 
 import { HapticTab } from '@/components/haptic-tab';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useThemePalette } from '@/hooks/use-theme-palette';
 
 export default function TabLayout() {
-    const colorScheme = useColorScheme();
-    const themeColors = Colors[colorScheme ?? 'light'];
+    const theme = useThemePalette();
 
     return (
         <Tabs
             safeAreaInsets={{ bottom: 0 }}
             detachInactiveScreens={false}
             screenOptions={{
-                tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tabIconSelected,
+                tabBarActiveTintColor: theme.primaryLight,
                 animation: 'shift',
                 transitionSpec: {
                     animation: 'timing',
@@ -42,9 +40,9 @@ export default function TabLayout() {
                     height: 70,
 
                     elevation: 5, // shadow for Android
-                    backgroundColor: themeColors.background,
+                    backgroundColor: theme.primarySoft,
                     borderRadius: 100,
-                    shadowColor: '#000', // iOS shadow
+                    shadowColor: theme.primarySoft, // iOS shadow
                     shadowOffset: { width: 0, height: 5 },
                     shadowOpacity: 0.1,
                     shadowRadius: 10,

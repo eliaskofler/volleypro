@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { TabSwipeView } from "@/components/tab-swipe-view";
 import { TAB_ROUTES } from "@/constants/tab-routes";
+import { useThemePalette } from "@/hooks/use-theme-palette";
 
 import { Chip } from "@/components/ui/Chip";
 import { FilterBottomSheet } from "@/components/events/filterBottomSheet";
@@ -32,12 +33,18 @@ const API_BASE_URL = "http://45.131.109.42:3000";
 
 const YEAR_OPTIONS: YearFilter[] = (() => {
     const currentYear = new Date().getFullYear();
-    const years: YearFilter[] = ["Upcoming"];
-    for (let y = currentYear; y >= 2000; y -= 1) years.push(y);
+    const years: YearFilter[] = [];
+
+    for (let y = 2000; y <= currentYear; y += 1) {
+        years.push(y); // number
+    }
+
+    years.push("Upcoming"); // string
     return years;
 })();
 
 export default function EventsScreen() {
+    const theme = useThemePalette();
     const [category, setCategory] = useState<EventCategory>("volleyball");
     const [year, setYear] = useState<YearFilter>("Upcoming");
     const [gender, setGender] = useState<GenderFilter>("all");
@@ -207,6 +214,69 @@ export default function EventsScreen() {
         setCountryType("all");
     }
 
+    const styles = StyleSheet.create({
+        safeArea: {
+            flex: 1,
+            backgroundColor: theme.background,
+        },
+        screen: {
+            flex: 1,
+            backgroundColor: theme.background,
+        },
+        header: {
+            paddingHorizontal: 20,
+            paddingTop: 18, // extra breathing room below the status bar
+            paddingBottom: 14,
+        },
+
+        listContainer: {
+            paddingHorizontal: 16,
+            paddingTop: 12,
+            paddingBottom: 160,
+            gap: 12,
+        },
+
+        emptyBox: {
+            backgroundColor: "#FFFFFF",
+            borderRadius: 16,
+            padding: 14,
+            marginBottom: 16,
+            borderWidth: 1,
+            borderColor: "#E7ECF5",
+        },
+        emptyTitle: {
+            color: "#0B1324",
+            fontSize: 14,
+            fontWeight: "900",
+        },
+        emptyText: {
+            marginTop: 6,
+            color: "#55657E",
+            fontSize: 13,
+            fontWeight: "600",
+        },
+
+        stateBox: {
+            backgroundColor: "#FFFFFF",
+            borderRadius: 16,
+            padding: 14,
+            borderWidth: 1,
+            borderColor: "#E7ECF5",
+            gap: 8,
+        },
+        stateTitle: {
+            color: "#0B1324",
+            fontSize: 14,
+            fontWeight: "900",
+        },
+        stateText: {
+            color: "#55657E",
+            fontSize: 13,
+            fontWeight: "600",
+            lineHeight: 18,
+        },
+    });
+
     return (
         <TabSwipeView routes={TAB_ROUTES}>
             <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -271,66 +341,3 @@ export default function EventsScreen() {
         </TabSwipeView>
     );
 }
-
-const styles = StyleSheet.create({
-    safeArea: {
-        flex: 1,
-        backgroundColor: "#F6F8FC",
-    },
-    screen: {
-        flex: 1,
-        backgroundColor: "#F6F8FC",
-    },
-    header: {
-        paddingHorizontal: 20,
-        paddingTop: 18, // extra breathing room below the status bar
-        paddingBottom: 14,
-    },
-
-    listContainer: {
-        paddingHorizontal: 16,
-        paddingTop: 12,
-        paddingBottom: 160,
-        gap: 12,
-    },
-
-    emptyBox: {
-        backgroundColor: "#FFFFFF",
-        borderRadius: 16,
-        padding: 14,
-        marginBottom: 16,
-        borderWidth: 1,
-        borderColor: "#E7ECF5",
-    },
-    emptyTitle: {
-        color: "#0B1324",
-        fontSize: 14,
-        fontWeight: "900",
-    },
-    emptyText: {
-        marginTop: 6,
-        color: "#55657E",
-        fontSize: 13,
-        fontWeight: "600",
-    },
-
-    stateBox: {
-        backgroundColor: "#FFFFFF",
-        borderRadius: 16,
-        padding: 14,
-        borderWidth: 1,
-        borderColor: "#E7ECF5",
-        gap: 8,
-    },
-    stateTitle: {
-        color: "#0B1324",
-        fontSize: 14,
-        fontWeight: "900",
-    },
-    stateText: {
-        color: "#55657E",
-        fontSize: 13,
-        fontWeight: "600",
-        lineHeight: 18,
-    },
-});

@@ -1,5 +1,6 @@
 import {ReactNode, useRef} from "react";
 import {Pressable, StyleSheet, Text, View} from "react-native";
+import { useThemePalette } from "@/hooks/use-theme-palette";
 
 type PillProps = {
     label: string;
@@ -17,6 +18,44 @@ export function Pill({
  iconRight,
 }: PillProps) {
     const abortControllerRef = useRef<AbortController | null>(null);
+    const theme = useThemePalette();
+
+    const styles = StyleSheet.create({
+        chip: {
+            borderRadius: 999,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderWidth: 1,
+            borderColor: theme.borderStrong,
+            height: 44,
+            justifyContent: 'center', // 👈 vertical centering
+            alignItems: 'center',
+        },
+        chipSelected: {
+            backgroundColor: "none",
+        },
+        chipPressed: {
+            opacity: 0.85,
+        },
+        chipText: {
+            fontSize: 18,
+            fontWeight: "600",
+            color: theme.textPrimary,
+        },
+        chipTextSelected: {
+            color: theme.textPrimary,
+        },
+        content: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+        },
+
+        icon: {
+            justifyContent: "center",
+            alignItems: "center",
+        },
+    })
 
     return (
         <Pressable
@@ -55,38 +94,3 @@ export function Pill({
         </Pressable>
     );
 }
-
-const styles = StyleSheet.create({
-    chip: {
-        borderRadius: 999,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderWidth: 1,
-        borderColor: "#E5EAF4",
-        height: 38,
-    },
-    chipSelected: {
-        backgroundColor: "none",
-    },
-    chipPressed: {
-        opacity: 0.85,
-    },
-    chipText: {
-        fontSize: 18,
-        fontWeight: "600",
-        color: "#000",
-    },
-    chipTextSelected: {
-        color: "#000",
-    },
-    content: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-    },
-
-    icon: {
-        justifyContent: "center",
-        alignItems: "center",
-    },
-})

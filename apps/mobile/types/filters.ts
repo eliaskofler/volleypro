@@ -1,4 +1,4 @@
-export type YearFilter = "Upcoming" | number;
+export type YearFilter = number | "Upcoming";
 export type EventCategory = "beach" | "volleyball";
 export type GenderFilter = "all" | string;
 export type OrganizerTypeFilter = "all" | string;

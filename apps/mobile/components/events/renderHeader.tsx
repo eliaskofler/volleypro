@@ -3,6 +3,7 @@ import { Chip } from "@/components/ui/Chip";
 import { Pill } from "@/components/ui/Pill";
 import { hero } from "@/constants/icons";
 import { WheelPicker } from "@/components/ui/WheelPicker";
+import { useThemePalette } from "@/hooks/use-theme-palette";
 
 import { YearFilter } from "@/types/filters";
 
@@ -32,7 +33,70 @@ export function EventListHeader({
     onOpenFilters,
     onResetFilters,
 }: EventListHeaderProps) {
+    const theme = useThemePalette();
     const isBeach = category === "beach";
+
+    const styles = StyleSheet.create({
+        resetBtn: {
+            paddingHorizontal: 12,
+            paddingVertical: 6,
+            borderRadius: 12,
+            backgroundColor: theme.inputBackground,
+            borderWidth: 1,
+            borderColor: theme.border,
+        },
+        resetBtnPressed: { opacity: 0.85 },
+        resetBtnText: {
+            fontSize: 12,
+            fontWeight: "900",
+            color: "#0F2A5F",
+            letterSpacing: 0.3,
+            textTransform: "uppercase",
+        },
+
+        filter: {
+            marginHorizontal: 16,
+        },
+        controlsCard: {
+            paddingVertical: 24,
+            display: "flex",
+            flexDirection: "row",      // 👈 put children in one line
+            alignItems: "center",      // 👈 vertical alignment
+            justifyContent: "space-between",
+            gap: 12,
+        },
+        controlsLook: {
+            display: "flex",
+            flexDirection: "row",
+            gap: 12,
+        },
+        section: {
+            gap: 8,
+        },
+        row: {
+            gap: 10,
+            paddingRight: 8,
+        },
+        rowWrap: {
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: 10,
+        },
+
+        resultsRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            marginBottom: 10,
+            paddingHorizontal: 4,
+        },
+        resultsText: {
+            color: theme.textSecondary,
+            fontSize: 13,
+            fontWeight: "800",
+        },
+    })
 
     return (
         <View style={styles.filter}>
@@ -43,7 +107,7 @@ export function EventListHeader({
                             <Pill
                                 label={isBeach ? "Beach 🏐" : "Volleyball"}
                                 selected
-                                iconLeft={<hero.switchIcon size={24} color="#000" />}
+                                iconLeft={<hero.switchIcon size={24} color={theme.textPrimary} />}
                                 onPress={() =>
                                     setCategory(isBeach ? "volleyball" : "beach")
                                 }
@@ -54,7 +118,7 @@ export function EventListHeader({
                     <WheelPicker
                         data={yearOptions}
                         value={year}
-                        onChange={setYear}
+                        onChange={(v) => setYear(v as YearFilter)}
                     />
                 </View>
 
@@ -84,7 +148,7 @@ export function EventListHeader({
                         accessibilityLabel="Open filters"
                         style={{ paddingRight: 4 }}
                     >
-                        <hero.filter color="#314057" size={24} />
+                        <hero.filter color={theme.textPrimary} size={24} />
                     </Pressable>
                 </View>
             </View>
@@ -110,69 +174,3 @@ export function EventListHeader({
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    resetBtn: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 12,
-        backgroundColor: "#FFFFFF",
-        borderWidth: 1,
-        borderColor: "#E5EAF4",
-    },
-    resetBtnPressed: { opacity: 0.85 },
-    resetBtnText: {
-        fontSize: 12,
-        fontWeight: "900",
-        color: "#0F2A5F",
-        letterSpacing: 0.3,
-        textTransform: "uppercase",
-    },
-
-    filter: {
-        marginHorizontal: 16,
-    },
-    controlsCard: {
-        paddingVertical: 24,
-        display: "flex",
-        flexDirection: "row",      // 👈 put children in one line
-        alignItems: "center",      // 👈 vertical alignment
-        justifyContent: "space-between",
-        gap: 12,
-    },
-    controlsLook: {
-        display: "flex",
-        flexDirection: "row",
-        gap: 12,
-    },
-    section: {
-        gap: 8,
-    },
-    row: {
-        gap: 10,
-        paddingRight: 8,
-    },
-    rowWrap: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 10,
-    },
-
-    resultsRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 12,
-        marginBottom: 10,
-        paddingHorizontal: 4,
-    },
-    resultsText: {
-        color: "#55657E",
-        fontSize: 13,
-        fontWeight: "800",
-    },
-    resultsStrong: {
-        color: "#0B1324",
-        fontWeight: "900",
-    },
-})

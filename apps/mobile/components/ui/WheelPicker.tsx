@@ -8,16 +8,19 @@ import {
     Animated,
     ViewStyle,
     TextStyle,
+    Platform
 } from "react-native";
+import { useThemePalette } from "@/hooks/use-theme-palette";
 
-const ITEM_HEIGHT = 38;
+const ITEM_WIDTH = 110;
+const ITEM_HEIGHT = 44;
 const VISIBLE_ITEMS = 3;
 const REPEAT_COUNT = 3;
 
-type WheelPickerProps<T extends string | number> = {
-    data: readonly T[];
-    value: T;
-    onChange: (value: T) => void;
+type WheelPickerProps = {
+    data: readonly (number | string)[];
+    value: number | string;
+    onChange: (value: number | string) => void;
     width?: number;
     itemHeight?: number;
     containerStyle?: ViewStyle;
@@ -29,12 +32,13 @@ export function WheelPicker<T extends string | number>({
    data,
    value,
    onChange,
-   width = 110,
+   width = ITEM_WIDTH,
    itemHeight = ITEM_HEIGHT,
    containerStyle,
    textStyle,
    selectedTextStyle,
-}: WheelPickerProps<T>) {
+}: WheelPickerProps) {
+    const theme = useThemePalette();
     const listRef = useRef<Animated.FlatList<T>>(null);
     const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -50,32 +54,66 @@ export function WheelPicker<T extends string | number>({
         const baseIndex = data.indexOf(value);
         if (baseIndex < 0) return;
 
-        // Only scroll to the default value in the first copy
-        const offset = baseIndex * itemHeight;
-        setTimeout(() => {
-            listRef.current?.scrollToOffset({ offset, animated: false });
-        }, 0);
-    }, [value]);
+        const offset = (middleIndex + baseIndex) * itemHeight;
 
-    const onMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-        const rawIndex = Math.round(e.nativeEvent.contentOffset.y / itemHeight);
-        const normalizedIndex = ((rawIndex % dataLength) + dataLength) % dataLength;
+        requestAnimationFrame(() => {
+            listRef.current?.scrollToOffset({
+                offset,
+                animated: false,
+            });
+        });
+
+        setSelectedValue(value);
+    }, [value, data, itemHeight, middleIndex]);
+
+    const handleScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+        const offsetY = e.nativeEvent.contentOffset.y;
+        const rawIndex = Math.round(offsetY / itemHeight);
+
+        const normalizedIndex =
+            ((rawIndex % dataLength) + dataLength) % dataLength;
+
         const newValue = data[normalizedIndex];
 
-        setSelectedValue(newValue);
-        onChange(newValue);
+        if (newValue !== selectedValue) {
+            setSelectedValue(newValue);
+            onChange(newValue);
+        }
 
-        // recenter to middle copy
-        const min = dataLength;
-        const max = dataLength * 2;
-        if (rawIndex <= min || rawIndex >= max) {
-            const recenteredIndex = middleIndex + normalizedIndex;
+        // Always re-center
+        const recenteredIndex = middleIndex + normalizedIndex;
+
+        requestAnimationFrame(() => {
             listRef.current?.scrollToOffset({
                 offset: recenteredIndex * itemHeight,
                 animated: false,
             });
-        }
+        });
     };
+
+
+    const styles = StyleSheet.create({
+        item: {
+            justifyContent: "center",
+            alignItems: "center",
+        },
+        text: {
+            lineHeight: ITEM_HEIGHT,
+        },
+        selectedText: {},
+        selectionOverlay: {
+            position: "absolute",
+            left: 0,
+            right: 0,
+            paddingHorizontal: 12,
+            borderRadius: 999,
+            borderTopWidth: 1,
+            borderWidth: 1,
+            borderColor: theme.borderStrong,
+            zIndex: 10,
+        },
+    });
+
 
     return (
         <View
@@ -111,11 +149,14 @@ export function WheelPicker<T extends string | number>({
                     showsVerticalScrollIndicator={false}
                     snapToInterval={itemHeight}
                     decelerationRate="fast"
-                    onMomentumScrollEnd={onMomentumScrollEnd}
+                    onMomentumScrollEnd={
+                        Platform.OS === "ios" ? handleScrollEnd : handleScrollEnd
+                    }
                     scrollEventThrottle={16}
+                    removeClippedSubviews={false}
                     onScroll={Animated.event(
                         [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-                        { useNativeDriver: true }
+                        { useNativeDriver: false }
                     )}
                     contentContainerStyle={{
                         paddingVertical: itemHeight * Math.floor(VISIBLE_ITEMS / 2),
@@ -138,7 +179,7 @@ export function WheelPicker<T extends string | number>({
 
                         const opacity = scrollY.interpolate({
                             inputRange,
-                            outputRange: [0, 0, 1, 0, 0],
+                            outputRange: [0.4, 0.6, 1, 0.6, 0.4],
                             extrapolate: "clamp",
                         });
 
@@ -149,11 +190,11 @@ export function WheelPicker<T extends string | number>({
                                 <Text
                                     style={[
                                         styles.text,
-                                        { fontSize: 14, color: "#999" },
+                                        { fontSize: 14, color: theme.textDisabled },
                                         textStyle,
                                         item === selectedValue && [
                                             styles.selectedText,
-                                            { fontSize: 18, fontWeight: "600", color: "#000" },
+                                            { fontSize: 18, fontWeight: "600", color: theme.textPrimary },
                                             selectedTextStyle,
                                         ],
                                     ]}
@@ -168,23 +209,3 @@ export function WheelPicker<T extends string | number>({
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    item: {
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    text: {},
-    selectedText: {},
-    selectionOverlay: {
-        position: "absolute",
-        left: 0,
-        right: 0,
-        paddingHorizontal: 12,
-        borderRadius: 999,
-        borderTopWidth: 1,
-        borderWidth: 1,
-        borderColor: "#E5EAF4",
-        zIndex: 10,
-    },
-});
