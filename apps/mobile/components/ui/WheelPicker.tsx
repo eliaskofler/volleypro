@@ -8,7 +8,6 @@ import {
     Animated,
     ViewStyle,
     TextStyle,
-    Platform
 } from "react-native";
 import { useThemePalette } from "@/hooks/use-theme-palette";
 
@@ -29,77 +28,94 @@ type WheelPickerProps = {
 };
 
 export function WheelPicker<T extends string | number>({
-   data,
-   value,
-   onChange,
-   width = ITEM_WIDTH,
-   itemHeight = ITEM_HEIGHT,
-   containerStyle,
-   textStyle,
-   selectedTextStyle,
-}: WheelPickerProps) {
+                                                           data,
+                                                           value,
+                                                           onChange,
+                                                           width = ITEM_WIDTH,
+                                                           itemHeight = ITEM_HEIGHT,
+                                                           containerStyle,
+                                                           textStyle,
+                                                           selectedTextStyle,
+                                                       }: WheelPickerProps) {
     const theme = useThemePalette();
     const listRef = useRef<Animated.FlatList<T>>(null);
     const scrollY = useRef(new Animated.Value(0)).current;
 
-    // Loop data
+    const isProgrammaticScroll = useRef(false);
+
     const loopedData = Array.from({ length: REPEAT_COUNT }, () => data).flat();
     const dataLength = data.length;
     const middleIndex = dataLength * Math.floor(REPEAT_COUNT / 2);
+    const centerOffset = Math.floor(VISIBLE_ITEMS / 2);
 
     const [selectedValue, setSelectedValue] = useState(value);
 
-    // Center the picker initially
-    useEffect(() => {
-        const baseIndex = data.indexOf(value);
+    const scrollToValueInMiddle = (val: number | string) => {
+        if (!listRef.current) return;
+        if (val === selectedValue) return; // prevent unnecessary scroll
+
+        const baseIndex = data.findIndex(v => v === val);
         if (baseIndex < 0) return;
 
-        const offset = (middleIndex + baseIndex) * itemHeight;
+        const targetIndex = middleIndex + baseIndex;
+        const padding = itemHeight * centerOffset;
+        const offset = targetIndex * itemHeight + padding;
 
-        requestAnimationFrame(() => {
-            listRef.current?.scrollToOffset({
-                offset,
-                animated: false,
-            });
-        });
+        console.log("Scrolling to value in middle:", val, "targetIndex:", targetIndex, "offset:", offset);
 
-        setSelectedValue(value);
-    }, [value, data, itemHeight, middleIndex]);
+        isProgrammaticScroll.current = true;
+        listRef.current.scrollToOffset({ offset, animated: false });
+    };
+
+
+    // Scroll to initial value after layout
+    const hasInitialized = useRef(false);
+
+    useEffect(() => {
+        if (!hasInitialized.current) {
+            scrollToValueInMiddle(value); // scroll once on mount
+            hasInitialized.current = true;
+        }
+    }, []);
 
     const handleScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
         const offsetY = e.nativeEvent.contentOffset.y;
         const rawIndex = Math.round(offsetY / itemHeight);
+        const valueAtIndex = loopedData[rawIndex];
 
-        const normalizedIndex =
-            ((rawIndex % dataLength) + dataLength) % dataLength;
+        if (valueAtIndex === selectedValue) return;
 
-        const newValue = data[normalizedIndex];
+        setSelectedValue(valueAtIndex);
+        onChange(valueAtIndex);
 
-        if (newValue !== selectedValue) {
-            setSelectedValue(newValue);
-            onChange(newValue);
+        // Only recenter if outside middle repetition
+        const middleStart = middleIndex;
+        const middleEnd = middleIndex + dataLength - 1;
+
+        if (rawIndex < middleStart || rawIndex > middleEnd) {
+            // Scroll to the first occurrence in middle repetition
+            const baseIndex = data.findIndex(v => v === valueAtIndex);
+            if (baseIndex !== -1) {
+                const targetIndex = middleIndex + baseIndex;
+                const padding = itemHeight * centerOffset;
+                const offset = targetIndex * itemHeight + padding;
+
+                console.log(
+                    "Recentering to middle repetition:",
+                    valueAtIndex,
+                    "targetIndex:", targetIndex,
+                    "offset:", offset
+                );
+
+                isProgrammaticScroll.current = true;
+                listRef.current?.scrollToOffset({ offset, animated: false });
+            }
         }
-
-        // Always re-center
-        const recenteredIndex = middleIndex + normalizedIndex;
-
-        requestAnimationFrame(() => {
-            listRef.current?.scrollToOffset({
-                offset: recenteredIndex * itemHeight,
-                animated: false,
-            });
-        });
     };
 
-
     const styles = StyleSheet.create({
-        item: {
-            justifyContent: "center",
-            alignItems: "center",
-        },
-        text: {
-            lineHeight: ITEM_HEIGHT,
-        },
+        item: { justifyContent: "center", alignItems: "center" },
+        text: { lineHeight: ITEM_HEIGHT },
         selectedText: {},
         selectionOverlay: {
             position: "absolute",
@@ -114,34 +130,27 @@ export function WheelPicker<T extends string | number>({
         },
     });
 
-
     return (
         <View
-            style={[
-                { height: itemHeight, width, overflow: "visible" },
-                containerStyle,
-            ]}
+            style={[{ height: itemHeight, width, overflow: "visible" }, containerStyle]}
         >
-            {/* Visual overflow */}
             <View
                 style={{
                     position: "absolute",
-                    top: -itemHeight * Math.floor(VISIBLE_ITEMS / 2),
+                    top: -itemHeight * centerOffset,
                     height: itemHeight * VISIBLE_ITEMS,
                     left: 0,
                     right: 0,
                 }}
             >
-                {/* Selection overlay */}
                 <View
                     style={[
                         styles.selectionOverlay,
-                        { top: itemHeight * Math.floor(VISIBLE_ITEMS / 2), height: itemHeight },
+                        { top: itemHeight * centerOffset, height: itemHeight },
                     ]}
                     pointerEvents="none"
                 />
 
-                {/* Animated FlatList */}
                 <Animated.FlatList
                     ref={listRef}
                     data={loopedData as any}
@@ -149,9 +158,7 @@ export function WheelPicker<T extends string | number>({
                     showsVerticalScrollIndicator={false}
                     snapToInterval={itemHeight}
                     decelerationRate="fast"
-                    onMomentumScrollEnd={
-                        Platform.OS === "ios" ? handleScrollEnd : handleScrollEnd
-                    }
+                    onMomentumScrollEnd={handleScrollEnd}
                     scrollEventThrottle={16}
                     removeClippedSubviews={false}
                     onScroll={Animated.event(
@@ -159,10 +166,15 @@ export function WheelPicker<T extends string | number>({
                         { useNativeDriver: false }
                     )}
                     contentContainerStyle={{
-                        paddingVertical: itemHeight * Math.floor(VISIBLE_ITEMS / 2),
+                        paddingVertical: itemHeight * centerOffset,
                     }}
+                    onLayout={() => scrollToValueInMiddle(value)}
+                    getItemLayout={(_, index) => ({
+                        length: itemHeight,
+                        offset: index * itemHeight,
+                        index,
+                    })}
                     renderItem={({ item, index }) => {
-                        // Calculate the center position of this item
                         const inputRange = [
                             (index - 2) * itemHeight,
                             (index - 1) * itemHeight,
@@ -185,7 +197,10 @@ export function WheelPicker<T extends string | number>({
 
                         return (
                             <Animated.View
-                                style={[styles.item, { height: itemHeight, transform: [{ scale }], opacity }]}
+                                style={[
+                                    styles.item,
+                                    { height: itemHeight, transform: [{ scale }], opacity },
+                                ]}
                             >
                                 <Text
                                     style={[
@@ -194,7 +209,11 @@ export function WheelPicker<T extends string | number>({
                                         textStyle,
                                         item === selectedValue && [
                                             styles.selectedText,
-                                            { fontSize: 18, fontWeight: "600", color: theme.textPrimary },
+                                            {
+                                                fontSize: 18,
+                                                fontWeight: "600",
+                                                color: theme.textPrimary,
+                                            },
                                             selectedTextStyle,
                                         ],
                                     ]}
